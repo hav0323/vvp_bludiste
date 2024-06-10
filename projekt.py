@@ -17,7 +17,10 @@ class Maze:
     def __init__(self, type: str = "create", size: int = None, template_type: str = "empty", file: str = None):
         if type == "create" and size is not None:
             self.size = size
-            self.maze = self.create_maze(size, template_type)
+            self.start = (0, 0)
+            self.end = (size - 1, size - 1)
+            self.template_type = template_type
+            self.maze = self.create_maze(size)
         elif type == "load" and file is not None:
             self.load_maze(file)
         else:
@@ -47,8 +50,7 @@ class Maze:
         plt.imshow(maze_vis, cmap=cmap)
         plt.show()
 
-    @staticmethod
-    def neighbors(maze: np.ndarray, node: tuple):
+    def neighbors(self, maze: np.ndarray, node: tuple):
         '''
         Support function for shortest_path and path_exists. Which returns accesible neighbors of the node.
         Parameters:
@@ -108,124 +110,102 @@ class Maze:
                     queue.append(neighbor)
         return False
 
-    def create_maze(self, size: int, template_type: str = "empty"):
+    def filling(self, maze: np.ndarray):
         '''
-        Function to create maze.
+        Function to fill the maze with walls until path exists.
         Parameters:
-        size - size of the maze,
-        template_type - type of the maze to create, either "empty", "slalom", "smiley", "cross" or "x",
+        maze - maze to fill,
+        return - filled maze
+        '''
+        control = 0
+        while control < 5:
+            if self.path_exists(maze):
+                x, y = random.randint(
+                    0, self.size - 1), random.randint(0, self.size - 1)
+                if (x, y) != self.start and (x, y) != self.end:
+                    maze[x, y] = True
+            else:
+                maze[x, y] = False
+                control += 1
+        return maze
+
+    def create_slalom(self):
+        '''
+        Function to create slalom in a matrix as a template for a maze
         return - maze
         '''
-        start = (0, 0)
-        end = (size-1, size - 1)
-        if template_type == 'empty':
-            maze = np.zeros((size, size), dtype=bool)
-            control = 0
-            while control < 5:
-                if self.path_exists(maze):
-                    x, y = random.randint(
-                        0, size - 1), random.randint(0, size - 1)
-                    if (x, y) != start and (x, y) != end:
-                        maze[x, y] = True
-                else:
-                    maze[x, y] = False
-                    control += 1
-            maze[start] = False
-            maze[end] = False
-            self.maze = maze
-            return self.maze
-        if template_type == 'slalom':
-            path_size = size // 10
-            wall_size = 2
-            maze = np.zeros((size, size), dtype=bool)
-            velikost_bloku = (wall_size+path_size)*2
-            pocet_cyklu = (size-1) // velikost_bloku
-            for i in range(pocet_cyklu):
-                pozice = i*velikost_bloku
-                maze[pozice+path_size:pozice+path_size +
-                     wall_size, :size-path_size] = 1
-                maze[pozice+path_size*2+wall_size:pozice +
-                     path_size*2+wall_size*2, path_size:] = 1
-            control = 0
-            while control < 5:
-                if self.path_exists(maze):
-                    x, y = random.randint(
-                        0, size - 1), random.randint(0, size - 1)
-                    maze[x, y] = True
-                else:
-                    maze[x, y] = False
-                    control += 1
-            maze[start] = False
-            maze[end] = False
-            self.maze = maze
-            return self.maze
-        if template_type == "smiley":
-            maze = np.zeros((size, size), dtype=bool)
-            eye_size = size // 10
-            eye_y = size // 3
-            eye_x_left = size // 3
-            eye_x_right = 2 * size // 3
-            mouth_y = 2 * size // 3
-            mouth_x_left = size // 4
-            mouth_x_right = 3 * size // 4
-            mouth_thickness = size // 20
-            maze[eye_y-eye_size:eye_y+eye_size,
-                 eye_x_left-eye_size:eye_x_left+eye_size] = 1
-            maze[eye_y-eye_size:eye_y+eye_size,
-                 eye_x_right-eye_size:eye_x_right+eye_size] = 1
-            for i in range(mouth_thickness):
-                mouth_x = np.arange(mouth_x_left, mouth_x_right)
-                mouth_y_temp = mouth_y + i + \
-                    (size // 10) * np.sin((mouth_x - mouth_x_left)
-                                          * np.pi / (mouth_x_right - mouth_x_left))
-                mouth_y_temp = mouth_y_temp.astype(int)
-                for x, y in zip(mouth_x, mouth_y_temp):
-                    maze[y: y + mouth_thickness, x] = 1
-            control = 0
-            while control < 5:
-                if self.path_exists(maze):
-                    x, y = random.randint(
-                        0, size - 1), random.randint(0, size - 1)
-                    maze[x, y] = True
-                else:
-                    maze[x, y] = False
-                    control += 1
-            maze[start] = False
-            maze[end] = False
-            self.maze = maze
-            return self.maze
-        if template_type == 'cross':
-            maze = np.zeros((size, size), dtype=bool)
-            maze[size//2, 1:size-1] = 1
-            maze[1:size-1, size//2] = 1
-            control = 0
-            while control < 5:
-                if self.path_exists(maze):
-                    x, y = random.randint(
-                        0, size - 1), random.randint(0, size - 1)
-                    maze[x, y] = True
-                else:
-                    maze[x, y] = False
-                    control += 1
-            maze[start] = False
-            maze[end] = False
-            self.maze = maze
-            return self.maze
-        if template_type == 'x':
-            maze = np.zeros((size, size), dtype=bool)
-            for i in range(1, size-1):
-                maze[i, i] = 1
-                maze[size-i-1, i] = 1
-            control = 0
-            while control < 5:
-                if self.path_exists(maze):
-                    x, y = random.randint(
-                        0, size - 1), random.randint(0, size - 1)
-                    maze[x, y] = True
-                else:
-                    maze[x, y] = False
-                    control += 1
-            maze[start] = False
-            maze[end] = False
-            self.maze = maze
-            return self.maze
+        path_size = self.size // 10
+        wall_size = 2
+        maze = np.zeros((self.size, self.size), dtype=bool)
+        velikost_bloku = (wall_size+path_size)*2
+        pocet_cyklu = (self.size-1) // velikost_bloku
+        for i in range(pocet_cyklu):
+            pozice = i*velikost_bloku
+            maze[pozice+path_size:pozice+path_size +
+                 wall_size, :self.size-path_size] = 1
+            maze[pozice+path_size*2+wall_size:pozice +
+                 path_size*2+wall_size*2, path_size:] = 1
+        return maze
+
+    def create_smiley(self):
+        '''
+        Function to create smiley in a matrix as a template for a maze
+        return - maze
+        '''
+        maze = np.zeros((self.size, self.size), dtype=bool)
+        eye_size = self.size // 10
+        eye_y = self.size // 3
+        eye_x_left = self.size // 3
+        eye_x_right = 2 * self.size // 3
+        mouth_y = 2 * self.size // 3
+        mouth_x_left = self.size // 4
+        mouth_x_right = 3 * self.size // 4
+        mouth_thickness = self.size // 20
+        maze[eye_y-eye_size:eye_y+eye_size,
+             eye_x_left-eye_size:eye_x_left+eye_size] = 1
+        maze[eye_y-eye_size:eye_y+eye_size,
+             eye_x_right-eye_size:eye_x_right+eye_size] = 1
+        for i in range(mouth_thickness):
+            mouth_x = np.arange(mouth_x_left, mouth_x_right)
+            mouth_y_temp = mouth_y + i + \
+                (self.size // 10) * np.sin((mouth_x - mouth_x_left)
+                                           * np.pi / (mouth_x_right - mouth_x_left))
+            mouth_y_temp = mouth_y_temp.astype(int)
+            for x, y in zip(mouth_x, mouth_y_temp):
+                maze[y: y + mouth_thickness, x] = 1
+        return maze
+
+    def create_cross(self):
+        '''
+        Function to create cross in a matrix as a template for a maze
+        return - maze
+        '''
+        maze = np.zeros((self.size, self.size), dtype=bool)
+        maze[self.size//2, 1:self.size-1] = 1
+        maze[1:self.size-1, self.size//2] = 1
+        return maze
+
+    def create_x(self):
+        maze = np.zeros((self.size, self.size), dtype=bool)
+        for i in range(1, self.size-1):
+            maze[i, i] = 1
+            maze[self.size-i-1, i] = 1
+        return maze
+
+    def create_maze(self, size: int, template_type: str = "empty"):
+        '''
+        Function to create a maze.
+        return - maze
+        '''
+        if self.template_type == 'empty':
+            maze = np.zeros((self.size, self.size), dtype=bool)
+        if self.template_type == 'slalom':
+            maze = self.create_slalom()
+        if self.template_type == "smiley":
+            maze = self.create_smiley()
+        if self.template_type == 'cross':
+            maze = self.create_cross()
+        if self.template_type == 'x':
+            maze = self.create_x()
+        self.maze = self.filling(maze)
+        return self.maze
