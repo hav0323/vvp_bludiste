@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import random
+from scipy.sparse import lil_matrix
 
 
 class Maze:
@@ -26,6 +27,37 @@ class Maze:
         else:
             raise ValueError("Invalid parameters for Maze initialization")
 
+    def create_incident_matrix(self, maze):
+        '''
+        Function to create incident matrix from maze.
+        Parameters:
+        maze - maze to create incident matrix from,
+        return - incident matrix
+        '''
+        size = len(maze)
+        matrix = lil_matrix((size*size, size*size), dtype=int)
+        for i in range(size):
+            for j in range(size):
+                if maze[i][j] == 0:
+                    cell_index = i * size + j
+                    for dx, dy in [(1, 0), (0, 1)]:
+                        nx, ny = i + dx, j + dy
+                        if 0 <= nx < size and 0 <= ny < size and maze[nx][ny] == 0:
+                            neighbor_index = nx * size + ny
+                            matrix[cell_index, neighbor_index] = 1
+                            matrix[neighbor_index, cell_index] = 1
+        return matrix
+
+    def get_accessible_neighbors(self, cell):
+        '''
+        Function to get accessible neighbors of a cell using incident matrix.
+        Parameters:
+        cell - cell to get neighbors of,
+        return - list of accessible neighbors
+        '''
+        indexes = self.incident_matrix.rows[cell[0] * self.size + cell[1]]
+        return [(index // self.size, index % self.size) for index in indexes]
+
     def load_maze(self, file):
         '''
         Load maze from file.
@@ -35,6 +67,7 @@ class Maze:
         data = np.genfromtxt(file, delimiter=',')
         self.size = data.shape[0]
         self.maze = data == 1
+        self.incident_matrix = self.create_incident_matrix(self.maze)
 
     def maze_picture(self, path):
         '''
@@ -49,22 +82,6 @@ class Maze:
         cmap = colors.ListedColormap(['white', 'black', 'red'])
         plt.imshow(maze_vis, cmap=cmap)
         plt.show()
-
-    def neighbors(self, maze: np.ndarray, node: tuple):
-        '''
-        Support function for shortest_path and path_exists. Which returns accesible neighbors of the node.
-        Parameters:
-        maze - maze to search in,
-        node - node to search neighbors for,
-        return - list of accessible neighbors
-        '''
-        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-        result = []
-        for dx, dy in directions:
-            x, y = node[0] + dx, node[1] + dy
-            if 0 <= x < maze.shape[0] and 0 <= y < maze.shape[1] and not maze[x, y]:
-                result.append((x, y))
-        return result
 
     def shortest_path(self):
         '''
@@ -81,7 +98,7 @@ class Maze:
             queue.remove((current_distance, current_node))
             if current_node == end:
                 return paths[current_node] + [end]
-            for neighbor in self.neighbors(self.maze, current_node):
+            for neighbor in self.get_accessible_neighbors(current_node):
                 distance = current_distance + 1
                 if neighbor not in distances or distance < distances[neighbor]:
                     distances[neighbor] = distance
@@ -89,7 +106,7 @@ class Maze:
                     queue.append((distance, neighbor))
         return None
 
-    def path_exists(self, maze: np.ndarray):
+    def path_exists(self):
         '''
         Function to check if path exists in the maze.
         Parameters:
@@ -104,7 +121,7 @@ class Maze:
             current_node = queue.pop(0)
             if current_node == end:
                 return True
-            for neighbor in self.neighbors(maze, current_node):
+            for neighbor in self.get_accessible_neighbors(current_node):
                 if neighbor not in visited:
                     visited.add(neighbor)
                     queue.append(neighbor)
@@ -119,13 +136,21 @@ class Maze:
         '''
         control = 0
         while control < 5:
-            if self.path_exists(maze):
-                x, y = random.randint(
-                    0, self.size - 1), random.randint(0, self.size - 1)
-                if (x, y) != self.start and (x, y) != self.end:
-                    maze[x, y] = True
+            if self.path_exists():
+                while True:
+                    x, y = random.randint(
+                        0, self.size - 1), random.randint(0, self.size - 1)
+                    if (x, y) != self.start and (x, y) != self.end and maze[x, y] == False:
+                        break
+                maze[x, y] = True
+                indexes = tuple(self.incident_matrix.rows[x*self.size + y])
+                self.incident_matrix[x*self.size + y, indexes] = 0
+                self.incident_matrix[indexes, x*self.size + y] = 0
+
             else:
                 maze[x, y] = False
+                self.incident_matrix[x*self.size + y, indexes] = 1
+                self.incident_matrix[indexes, x*self.size + y] = 1
                 control += 1
         return maze
 
@@ -207,5 +232,6 @@ class Maze:
             maze = self.create_cross()
         if self.template_type == 'x':
             maze = self.create_x()
+        self.incident_matrix = self.create_incident_matrix(maze)
         self.maze = self.filling(maze)
         return self.maze
