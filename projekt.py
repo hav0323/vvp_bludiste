@@ -20,7 +20,7 @@ class Maze:
             self.start = (0, 0)
             self.end = (size - 1, size - 1)
             self.template_type = template_type
-            self.maze = self.create_maze(size)
+            self.maze = self.create_maze()
         elif type == "load" and file is not None:
             self.load_maze(file)
         else:
@@ -192,7 +192,7 @@ class Maze:
             maze[self.size-i-1, i] = 1
         return maze
 
-    def create_maze(self, size: int, template_type: str = "empty"):
+    def create_maze(self):
         '''
         Function to create a maze.
         return - maze
