@@ -18,9 +18,9 @@ class Maze:
     def __init__(self, type: str = "create", size: int = None, template_type: str = "empty", file: str = None):
         if type == "create" and size is not None:
             self.size = size
+            self.template_type = template_type
             self.start = (0, 0)
             self.end = (size - 1, size - 1)
-            self.template_type = template_type
             self.maze = self.create_maze()
         elif type == "load" and file is not None:
             self.load_maze(file)
@@ -67,6 +67,8 @@ class Maze:
         data = np.genfromtxt(file, delimiter=',')
         self.size = data.shape[0]
         self.maze = data == 1
+        self.start = (0, 0)
+        self.end = (self.size - 1, self.size - 1)
         self.incident_matrix = self.create_incident_matrix(self.maze)
 
     def maze_picture(self, path):
@@ -88,16 +90,14 @@ class Maze:
         Function to find the shortest path in the maze.
         return - list of cells in the path  
         '''
-        start = (0, 0)
-        end = (self.size - 1, self.size - 1)
-        queue = [(0, start)]
-        distances = {start: 0}
-        paths = {start: []}
+        queue = [(0, self.start)]
+        distances = {self.start: 0}
+        paths = {self.start: []}
         while queue:
             current_distance, current_node = min(queue, key=lambda x: x[0])
             queue.remove((current_distance, current_node))
-            if current_node == end:
-                return paths[current_node] + [end]
+            if current_node == self.end:
+                return paths[current_node] + [self.end]
             for neighbor in self.get_accessible_neighbors(current_node):
                 distance = current_distance + 1
                 if neighbor not in distances or distance < distances[neighbor]:
@@ -113,13 +113,11 @@ class Maze:
         maze - maze to search in,
         return - True if path exists, False otherwise
         '''
-        start = (0, 0)
-        end = (self.size - 1, self.size - 1)
-        queue = [start]
-        visited = set([start])
+        queue = [self.start]
+        visited = set([self.start])
         while queue:
             current_node = queue.pop(0)
-            if current_node == end:
+            if current_node == self.end:
                 return True
             for neighbor in self.get_accessible_neighbors(current_node):
                 if neighbor not in visited:
